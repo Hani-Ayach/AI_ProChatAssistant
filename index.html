@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Groq AI Chat</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%);
+            pointer-events: none;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 20px;
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(148, 163, 184, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .config-panel {
+            background: rgba(30, 41, 59, 0.95);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            padding: 20px;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .config-panel.visible {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .config-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .config-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #e2e8f0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .config-select, .config-input {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 8px;
+            color: #e2e8f0;
+            padding: 8px 12px;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .config-select:focus, .config-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        .config-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .config-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .config-btn.primary {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+        }
+
+        .config-btn.secondary {
+            background: rgba(148, 163, 184, 0.2);
+            color: #e2e8f0;
+        }
+
+        .config-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .config-toggle {
+            position: absolute;
+            right: 70px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .config-toggle:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .current-config {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6, #ec4899);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            position: relative;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .chat-header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .chat-header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .developer-info {
+            font-size: 12px;
+            opacity: 0.8;
+            font-style: italic;
+            color: #e2e8f0;
+        }
+
+        .developer-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            margin-top: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-indicator {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+            transition: all 0.3s ease;
+        }
+
+        .status-dot.offline {
+            background: #ef4444;
+            animation: none;
+        }
+
+        .status-text {
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .status-text.offline {
+            color: #fecaca;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.8) 100%);
+        }
+
+        .message {
+            display: flex;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.ai {
+            justify-content: flex-start;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: 20px;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            border-bottom-right-radius: 5px;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .message.ai .message-content {
+            background: rgba(30, 41, 59, 0.9);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-bottom-left-radius: 5px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .message-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            margin: 0 12px;
+            flex-shrink: 0;
+            font-size: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #ec4899, #f59e0b);
+            order: 2;
+        }
+
+        .message.ai .message-avatar {
+            background: linear-gradient(135deg, #10b981, #06b6d4);
+        }
+
+        .timestamp {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .chat-input-form {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .chat-input {
+            width: 100%;
+            min-height: 50px;
+            max-height: 120px;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .chat-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .send-button {
+            width: 50px;
+            height: 50px;
+            border: none;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            font-size: 18px;
+        }
+
+        .send-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-items: center;
+            gap: 5px;
+            color: #666;
+            font-style: italic;
+            margin-left: 50px;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 3px;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: #666;
+            border-radius: 50%;
+            animation: typing 1.5s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.3s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.6s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 10px 15px;
+            border-radius: 10px;
+            margin: 10px 20px;
+            border: 1px solid #fecaca;
+        }
+
+        /* Scrollbar Styles */
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 3px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        /* Mobile Responsive Enhancements */
+        @media (max-width: 768px) {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            .chat-container {
+                height: 100vh;
+                border-radius: 0;
+                max-width: 100%;
+                width: 100%;
+            }
+            
+            .chat-header {
+                padding: 20px 15px;
+            }
+
+            .chat-header h1 {
+                font-size: 24px;
+                margin-bottom: 4px;
+            }
+
+            .chat-header .subtitle {
+                font-size: 13px;
+            }
+
+            .developer-badge {
+                font-size: 10px;
+                padding: 3px 10px;
+                margin-top: 6px;
+            }
+
+            .status-indicator {
+                right: 15px;
+            }
+
+            .status-text {
+                font-size: 11px;
+            }
+
+            .chat-messages {
+                padding: 15px;
+                gap: 15px;
+            }
+            
+            .message-content {
+                max-width: 85%;
+                padding: 12px 15px;
+                font-size: 14px;
+                line-height: 1.4;
+            }
+
+            .message-avatar {
+                width: 35px;
+                height: 35px;
+                margin: 0 8px;
+                font-size: 12px;
+            }
+
+            .timestamp {
+                font-size: 10px;
+                margin-top: 4px;
+            }
+
+            .chat-input-container {
+                padding: 15px;
+            }
+
+            .chat-input {
+                min-height: 45px;
+                padding: 12px 16px;
+                font-size: 16px; /* Prevents zoom on iOS */
+                border-radius: 22px;
+            }
+
+            .send-button {
+                width: 45px;
+                height: 45px;
+                font-size: 16px;
+            }
+
+            .typing-indicator {
+                margin-left: 35px;
+                font-size: 13px;
+            }
+
+            .error-message {
+                margin: 8px 15px;
+                padding: 8px 12px;
+                font-size: 13px;
+            }
+
+            /* Configuration panel mobile styles */
+            .config-panel {
+                padding: 15px;
+            }
+
+            .config-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .config-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .config-actions > div:last-child {
+                display: flex;
+                gap: 8px;
+                width: 100%;
+            }
+
+            .config-btn {
+                flex: 1;
+                padding: 10px;
+            }
+
+            .config-toggle {
+                position: relative;
+                right: auto;
+                top: auto;
+                transform: none;
+                margin-top: 8px;
+                width: 100%;
+                justify-self: center;
+            }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .chat-header h1 {
+                font-size: 20px;
+            }
+
+            .chat-header .subtitle {
+                font-size: 12px;
+            }
+
+            .developer-badge {
+                font-size: 9px;
+                padding: 2px 8px;
+            }
+
+            .message-content {
+                max-width: 90%;
+                padding: 10px 12px;
+                font-size: 13px;
+            }
+
+            .message-avatar {
+                width: 30px;
+                height: 30px;
+                font-size: 11px;
+            }
+
+            .chat-input {
+                min-height: 42px;
+                padding: 10px 14px;
+            }
+
+            .send-button {
+                width: 42px;
+                height: 42px;
+                font-size: 14px;
+            }
+        }
+
+        /* Landscape mobile orientation */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .chat-container {
+                height: 100vh;
+            }
+
+            .chat-header {
+                padding: 15px;
+            }
+
+            .chat-header h1 {
+                font-size: 22px;
+            }
+
+            .developer-badge {
+                margin-top: 4px;
+            }
+
+            .chat-messages {
+                padding: 12px;
+            }
+
+            .chat-input-container {
+                padding: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>🚀 Hani's AI Assistant</h1>
+            <div class="subtitle">Powered by Groq Llama3-8B-8192</div>
+            <div class="developer-info">
+                <div class="developer-badge">
+                    💻 Built by Hani Ayach | Full Stack Developer
+                </div>
+            </div>
+            <div class="status-indicator" id="statusIndicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span class="status-text" id="statusText">Online</span>
+            </div>
+            <button class="config-toggle" id="configToggle">⚙️ Settings</button>
+        </div>
+
+        <!-- Configuration Panel -->
+        <div class="config-panel" id="configPanel">
+            <div class="config-grid">
+                <div class="config-group">
+                    <label class="config-label">Expert Type</label>
+                    <select class="config-select" id="expertType">
+                        <option value="">General Assistant</option>
+                        <option value="software_developer">💻 Software Developer</option>
+                        <option value="web_developer">🌐 Web Developer</option>
+                        <option value="data_scientist">📊 Data Scientist</option>
+                        <option value="chef">👨‍🍳 Chef</option>
+                        <option value="doctor">👨‍⚕️ Medical Doctor</option>
+                        <option value="teacher">👨‍🏫 Teacher</option>
+                        <option value="lawyer">⚖️ Lawyer</option>
+                        <option value="business_analyst">📈 Business Analyst</option>
+                        <option value="marketing_expert">📢 Marketing Expert</option>
+                        <option value="financial_advisor">💰 Financial Advisor</option>
+                        <option value="cybersecurity_expert">🛡️ Cybersecurity Expert</option>
+                        <option value="ai_researcher">🤖 AI Researcher</option>
+                        <option value="designer">🎨 UI/UX Designer</option>
+                        <option value="writer">✍️ Content Writer</option>
+                        <option value="translator">🌍 Translator</option>
+                    </select>
+                </div>
+
+                <div class="config-group">
+                    <label class="config-label">Response Language</label>
+                    <select class="config-select" id="responseLanguage">
+                        <option value="english">🇺🇸 English</option>
+                        <option value="arabic">🇸🇦 Arabic</option>
+                        <option value="french">🇫🇷 French</option>
+                        <option value="spanish">🇪🇸 Spanish</option>
+                        <option value="german">🇩🇪 German</option>
+                        <option value="italian">🇮🇹 Italian</option>
+                        <option value="portuguese">🇵🇹 Portuguese</option>
+                        <option value="russian">🇷🇺 Russian</option>
+                        <option value="chinese">🇨🇳 Chinese</option>
+                        <option value="japanese">🇯🇵 Japanese</option>
+                        <option value="korean">🇰🇷 Korean</option>
+                        <option value="hindi">🇮🇳 Hindi</option>
+                    </select>
+                </div>
+
+                <div class="config-group">
+                    <label class="config-label">Response Detail Level</label>
+                    <select class="config-select" id="detailLevel">
+                        <option value="concise">📝 Concise</option>
+                        <option value="balanced" selected>⚖️ Balanced</option>
+                        <option value="detailed">📚 Detailed</option>
+                        <option value="comprehensive">🔍 Comprehensive</option>
+                    </select>
+                </div>
+
+                <div class="config-group">
+                    <label class="config-label">Communication Style</label>
+                    <select class="config-select" id="communicationStyle">
+                        <option value="professional" selected>💼 Professional</option>
+                        <option value="casual">😊 Casual</option>
+                        <option value="friendly">🤗 Friendly</option>
+                        <option value="academic">🎓 Academic</option>
+                        <option value="technical">⚙️ Technical</option>
+                        <option value="creative">🎨 Creative</option>
+                    </select>
+                </div>
+
+                <div class="config-group">
+                    <label class="config-label">Output Format</label>
+                    <select class="config-select" id="outputFormat">
+                        <option value="paragraph" selected>📄 Paragraph</option>
+                        <option value="bullet_points">• Bullet Points</option>
+                        <option value="numbered_list">1. Numbered List</option>
+                        <option value="code_examples">💻 Code Examples</option>
+                        <option value="step_by_step">📋 Step-by-step</option>
+                    </select>
+                </div>
+
+                <div class="config-group">
+                    <label class="config-label">Context Focus</label>
+                    <input type="text" class="config-input" id="contextFocus" 
+                           placeholder="e.g., React, Python, Cooking, etc." 
+                           maxlength="50">
+                </div>
+            </div>
+
+            <div class="config-actions">
+                <div class="current-config" id="currentConfig">
+                    Current: General Assistant • English • Balanced
+                </div>
+                <div>
+                    <button class="config-btn secondary" id="resetConfig">Reset</button>
+                    <button class="config-btn primary" id="applyConfig">Apply Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="message ai">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    Hey there! I'm Hani's personal AI assistant, powered by Groq's lightning-fast Llama3 model. I'm here to help with coding questions, technical discussions, project planning, or just about anything else! What would you like to explore today?
+                    <div class="timestamp" id="welcomeTime"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+            <div class="message-avatar">🤖</div>
+            Hani's AI is thinking...
+            <div class="typing-dots">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <form class="chat-input-form" id="chatForm">
+                <div class="input-wrapper">
+                    <textarea 
+                        class="chat-input" 
+                        id="messageInput" 
+                        placeholder="Ask Hani's AI anything... coding, tech, projects, or just chat!" 
+                        rows="1"
+                        maxlength="1000"
+                    ></textarea>
+                </div>
+                <button type="submit" class="send-button" id="sendButton">
+                    ➤
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        class ChatInterface {
+            constructor() {
+                this.chatMessages = document.getElementById('chatMessages');
+                this.messageInput = document.getElementById('messageInput');
+                this.sendButton = document.getElementById('sendButton');
+                this.chatForm = document.getElementById('chatForm');
+                this.typingIndicator = document.getElementById('typingIndicator');
+                this.statusDot = document.getElementById('statusDot');
+                this.statusText = document.getElementById('statusText');
+                this.configPanel = document.getElementById('configPanel');
+                this.configToggle = document.getElementById('configToggle');
+                this.isOnline = navigator.onLine;
+                
+                // Configuration elements
+                this.expertType = document.getElementById('expertType');
+                this.responseLanguage = document.getElementById('responseLanguage');
+                this.detailLevel = document.getElementById('detailLevel');
+                this.communicationStyle = document.getElementById('communicationStyle');
+                this.outputFormat = document.getElementById('outputFormat');
+                this.contextFocus = document.getElementById('contextFocus');
+                this.currentConfig = document.getElementById('currentConfig');
+                
+                // User preferences
+                this.userConfig = {
+                    expertType: '',
+                    responseLanguage: 'english',
+                    detailLevel: 'balanced',
+                    communicationStyle: 'professional',
+                    outputFormat: 'paragraph',
+                    contextFocus: ''
+                };
+                
+                this.init();
+            }
+
+            init() {
+                // Set welcome timestamp
+                document.getElementById('welcomeTime').textContent = this.getCurrentTime();
+                
+                // Event listeners
+                this.chatForm.addEventListener('submit', (e) => this.handleSubmit(e));
+                this.messageInput.addEventListener('input', () => this.handleInputResize());
+                this.messageInput.addEventListener('keydown', (e) => this.handleKeyDown(e));
+                
+                // Configuration panel events
+                this.configToggle.addEventListener('click', () => this.toggleConfigPanel());
+                document.getElementById('applyConfig').addEventListener('click', () => this.applyConfiguration());
+                document.getElementById('resetConfig').addEventListener('click', () => this.resetConfiguration());
+                
+                // Network status listeners
+                window.addEventListener('online', () => this.updateNetworkStatus(true));
+                window.addEventListener('offline', () => this.updateNetworkStatus(false));
+                
+                // Initial setup
+                this.loadConfiguration();
+                this.updateNetworkStatus(this.isOnline);
+                this.updateConfigDisplay();
+                this.handleInputResize();
+
+                // Check network status periodically
+                setInterval(() => this.checkNetworkStatus(), 5000);
+            }
+
+            toggleConfigPanel() {
+                this.configPanel.classList.toggle('visible');
+                this.configToggle.textContent = this.configPanel.classList.contains('visible') 
+                    ? '❌ Close' : '⚙️ Settings';
+            }
+
+            loadConfiguration() {
+                // Load from localStorage if available
+                const saved = localStorage.getItem('hani-ai-config');
+                if (saved) {
+                    this.userConfig = { ...this.userConfig, ...JSON.parse(saved) };
+                    this.syncConfigToUI();
+                }
+            }
+
+            saveConfiguration() {
+                localStorage.setItem('hani-ai-config', JSON.stringify(this.userConfig));
+            }
+
+            syncConfigToUI() {
+                this.expertType.value = this.userConfig.expertType;
+                this.responseLanguage.value = this.userConfig.responseLanguage;
+                this.detailLevel.value = this.userConfig.detailLevel;
+                this.communicationStyle.value = this.userConfig.communicationStyle;
+                this.outputFormat.value = this.userConfig.outputFormat;
+                this.contextFocus.value = this.userConfig.contextFocus;
+            }
+
+            applyConfiguration() {
+                // Get values from UI
+                this.userConfig = {
+                    expertType: this.expertType.value,
+                    responseLanguage: this.responseLanguage.value,
+                    detailLevel: this.detailLevel.value,
+                    communicationStyle: this.communicationStyle.value,
+                    outputFormat: this.outputFormat.value,
+                    contextFocus: this.contextFocus.value
+                };
+                
+                this.saveConfiguration();
+                this.updateConfigDisplay();
+                this.toggleConfigPanel();
+                
+                // Show confirmation message
+                this.addMessage('Configuration updated! Your AI assistant is now customized to your preferences.', 'system');
+            }
+
+            resetConfiguration() {
+                this.userConfig = {
+                    expertType: '',
+                    responseLanguage: 'english',
+                    detailLevel: 'balanced',
+                    communicationStyle: 'professional',
+                    outputFormat: 'paragraph',
+                    contextFocus: ''
+                };
+                
+                this.syncConfigToUI();
+                this.saveConfiguration();
+                this.updateConfigDisplay();
+                
+                this.addMessage('Configuration reset to defaults.', 'system');
+            }
+
+            updateConfigDisplay() {
+                const expert = this.expertType.options[this.expertType.selectedIndex]?.text.replace(/[^\w\s]/g, '').trim() || 'General Assistant';
+                const language = this.responseLanguage.options[this.responseLanguage.selectedIndex]?.text.replace(/[^\w\s]/g, '').trim() || 'English';
+                const detail = this.detailLevel.options[this.detailLevel.selectedIndex]?.text.replace(/[^\w\s]/g, '').trim() || 'Balanced';
+                
+                this.currentConfig.textContent = `Current: ${expert} • ${language} • ${detail}`;
+            }
+
+            buildSystemPrompt() {
+                let systemPrompt = '';
+                
+                // Expert type
+                if (this.userConfig.expertType) {
+                    const expertMap = {
+                        'software_developer': 'You are an expert software developer with deep knowledge of programming languages, frameworks, and best practices.',
+                        'web_developer': 'You are a skilled web developer specializing in frontend and backend technologies, responsive design, and modern web frameworks.',
+                        'data_scientist': 'You are a data scientist expert in statistics, machine learning, data analysis, and visualization tools.',
+                        'chef': 'You are a professional chef with expertise in cooking techniques, recipes, nutrition, and culinary arts.',
+                        'doctor': 'You are a medical doctor with comprehensive knowledge of health, medicine, and medical procedures. Note: Always advise consulting a healthcare professional for serious concerns.',
+                        'teacher': 'You are an experienced educator skilled in explaining complex concepts in simple terms and creating learning materials.',
+                        'lawyer': 'You are a legal expert knowledgeable in law, legal procedures, and regulations. Note: This is not legal advice - consult a qualified attorney for legal matters.',
+                        'business_analyst': 'You are a business analyst expert in market research, business strategy, process improvement, and data analysis.',
+                        'marketing_expert': 'You are a marketing professional with expertise in digital marketing, branding, campaign strategies, and market analysis.',
+                        'financial_advisor': 'You are a financial expert knowledgeable in investments, budgeting, financial planning, and market analysis.',
+                        'cybersecurity_expert': 'You are a cybersecurity specialist with deep knowledge of security protocols, threat analysis, and protection strategies.',
+                        'ai_researcher': 'You are an AI researcher with expertise in machine learning, neural networks, and artificial intelligence technologies.',
+                        'designer': 'You are a UI/UX designer expert in user experience, interface design, design principles, and design tools.',
+                        'writer': 'You are a professional content writer skilled in various writing styles, editing, and content creation.',
+                        'translator': 'You are a professional translator with expertise in multiple languages and cultural nuances.'
+                    };
+                    systemPrompt += expertMap[this.userConfig.expertType] || '';
+                }
+                
+                // Language preference
+                if (this.userConfig.responseLanguage && this.userConfig.responseLanguage !== 'english') {
+                    const languageMap = {
+                        'arabic': 'Respond in Arabic language.',
+                        'french': 'Respond in French language.',
+                        'spanish': 'Respond in Spanish language.',
+                        'german': 'Respond in German language.',
+                        'italian': 'Respond in Italian language.',
+                        'portuguese': 'Respond in Portuguese language.',
+                        'russian': 'Respond in Russian language.',
+                        'chinese': 'Respond in Chinese language.',
+                        'japanese': 'Respond in Japanese language.',
+                        'korean': 'Respond in Korean language.',
+                        'hindi': 'Respond in Hindi language.'
+                    };
+                    systemPrompt += ` ${languageMap[this.userConfig.responseLanguage]}`;
+                }
+                
+                // Detail level
+                const detailMap = {
+                    'concise': ' Keep responses brief and to the point.',
+                    'balanced': ' Provide balanced responses with adequate detail.',
+                    'detailed': ' Provide detailed explanations with examples.',
+                    'comprehensive': ' Give comprehensive, thorough responses covering all aspects.'
+                };
+                systemPrompt += detailMap[this.userConfig.detailLevel];
+                
+                // Communication style
+                const styleMap = {
+                    'professional': ' Use a professional tone.',
+                    'casual': ' Use a casual, relaxed tone.',
+                    'friendly': ' Be warm and friendly in your responses.',
+                    'academic': ' Use an academic, scholarly tone.',
+                    'technical': ' Focus on technical accuracy and use appropriate terminology.',
+                    'creative': ' Be creative and engaging in your responses.'
+                };
+                systemPrompt += styleMap[this.userConfig.communicationStyle];
+                
+                // Output format
+                const formatMap = {
+                    'paragraph': ' Format responses in clear paragraphs.',
+                    'bullet_points': ' Use bullet points to organize information.',
+                    'numbered_list': ' Use numbered lists when appropriate.',
+                    'code_examples': ' Include code examples when relevant.',
+                    'step_by_step': ' Provide step-by-step instructions when applicable.'
+                };
+                systemPrompt += formatMap[this.userConfig.outputFormat];
+                
+                // Context focus
+                if (this.userConfig.contextFocus) {
+                    systemPrompt += ` Focus specifically on ${this.userConfig.contextFocus} when relevant to the question.`;
+                }
+                
+                return systemPrompt.trim();
+            }
+
+            updateNetworkStatus(isOnline) {
+                this.isOnline = isOnline;
+                
+                if (isOnline) {
+                    this.statusDot.classList.remove('offline');
+                    this.statusText.classList.remove('offline');
+                    this.statusText.textContent = 'Online';
+                } else {
+                    this.statusDot.classList.add('offline');
+                    this.statusText.classList.add('offline');
+                    this.statusText.textContent = 'Offline';
+                }
+                
+                // Update send button state
+                this.setSendButtonState(isOnline && this.messageInput.value.trim());
+            }
+
+            async checkNetworkStatus() {
+                try {
+                    const response = await fetch('/api/health', { 
+                        method: 'GET',
+                        cache: 'no-cache'
+                    });
+                    this.updateNetworkStatus(response.ok);
+                } catch (error) {
+                    this.updateNetworkStatus(false);
+                }
+            }
+
+            getCurrentTime() {
+                return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+
+            handleKeyDown(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.handleSubmit(e);
+                }
+            }
+
+            handleInputResize() {
+                this.messageInput.style.height = 'auto';
+                this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
+                
+                // Update send button state based on input and network status
+                const hasText = this.messageInput.value.trim().length > 0;
+                this.setSendButtonState(hasText && this.isOnline);
+            }
+
+            async handleSubmit(e) {
+                e.preventDefault();
+                
+                // Check if offline
+                if (!this.isOnline) {
+                    this.showError('No internet connection. Please check your network and try again.');
+                    return;
+                }
+                
+                const message = this.messageInput.value.trim();
+                if (!message) return;
+
+                // Add user message
+                this.addMessage(message, 'user');
+                
+                // Clear input and disable send button
+                this.messageInput.value = '';
+                this.handleInputResize();
+                this.setSendButtonState(false);
+                
+                // Show typing indicator
+                this.showTypingIndicator();
+                
+                try {
+                    // Send message to API
+                    const response = await this.sendToAPI(message);
+                    this.addMessage(response, 'ai');
+                } catch (error) {
+                    console.error('Error:', error);
+                    
+                    if (error.message.includes('fetch')) {
+                        this.updateNetworkStatus(false);
+                        this.showError('Connection lost. Please check your internet connection.');
+                    } else {
+                        this.showError('Sorry, I encountered an error. Please try again.');
+                    }
+                }
+                
+                // Hide typing indicator and re-enable send button if online
+                this.hideTypingIndicator();
+                this.setSendButtonState(this.isOnline);
+            }
+
+            addMessage(content, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}`;
+                
+                const avatar = document.createElement('div');
+                avatar.className = 'message-avatar';
+                
+                if (sender === 'system') {
+                    avatar.textContent = '⚙️';
+                    messageDiv.className = 'message ai'; // Style like AI message but different avatar
+                } else {
+                    avatar.textContent = sender === 'user' ? '👨‍💻' : '🤖';
+                }
+                
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content';
+                
+                if (sender === 'system') {
+                    messageContent.style.background = 'rgba(59, 130, 246, 0.2)';
+                    messageContent.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                    messageContent.style.fontSize = '13px';
+                    messageContent.style.fontStyle = 'italic';
+                }
+                
+                messageContent.innerHTML = `
+                    ${this.formatMessage(content)}
+                    <div class="timestamp">${this.getCurrentTime()}</div>
+                `;
+                
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(messageContent);
+                
+                this.chatMessages.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+
+            formatMessage(content) {
+                // Basic formatting - convert line breaks and make URLs clickable
+                return content
+                    .replace(/\n/g, '<br>')
+                    .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+            }
+
+            showTypingIndicator() {
+                this.typingIndicator.style.display = 'flex';
+                this.scrollToBottom();
+            }
+
+            hideTypingIndicator() {
+                this.typingIndicator.style.display = 'none';
+            }
+
+            setSendButtonState(enabled) {
+                this.sendButton.disabled = !enabled;
+            }
+
+            showError(message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = message;
+                this.chatMessages.appendChild(errorDiv);
+                this.scrollToBottom();
+            }
+
+            scrollToBottom() {
+                setTimeout(() => {
+                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                }, 100);
+            }
+
+            async sendToAPI(message) {
+                // Call our backend API endpoint with user configuration
+                const API_URL = '/api/chat';
+                
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 30000);
+                    
+                    // Build the enhanced prompt with system instructions
+                    const systemPrompt = this.buildSystemPrompt();
+                    const enhancedMessage = systemPrompt ? `${systemPrompt}\n\nUser question: ${message}` : message;
+                    
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ 
+                            message: enhancedMessage,
+                            config: this.userConfig // Send config to backend for potential future use
+                        }),
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) {
+                        if (response.status === 0 || !navigator.onLine) {
+                            throw new Error('Network connection failed');
+                        }
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    return data.response;
+                    
+                } catch (error) {
+                    console.error('API Error:', error);
+                    
+                    if (error.name === 'AbortError') {
+                        throw new Error('Request timed out. Please try again.');
+                    }
+                    
+                    if (error.message.includes('Failed to fetch') || 
+                        error.message.includes('Network connection failed')) {
+                        this.updateNetworkStatus(false);
+                        throw new Error('Cannot connect to server. Check your internet connection.');
+                    }
+                    
+                    throw new Error(error.message);
+                }
+            }
+        }
+
+        // Initialize the chat interface when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ChatInterface();
+        });
+    </script>
+</body>
+</html>
